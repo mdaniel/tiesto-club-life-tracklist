@@ -45,10 +45,14 @@ def get_episode_bodies():
             episode = 0
         else:
             episode = int(ma.group(1))
-        txt = body.text
+        payload = u''.join([u'\n%s\n ' % it.text if it.name.startswith('h')
+                            else u''.join(['\n' if ii.name == 'br' else unicode(ii) for ii in it.contents])
+                            for it in body.contents])
+        payload = payload.strip()
+        payload = payload.encode('utf-8')
         output = {
             'episode': episode,
-            'text': txt,
+            'text': payload,
             'url': url,
         }
         yield output
