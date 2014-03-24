@@ -1,23 +1,64 @@
-# This is a template for a Python scraper on Morph (https://morph.io)
-# including some code snippets below that you should find helpful
+# -*- coding: utf-8 -*-
+from __future__ import print_function
+import re
+import sys
+import scraperwiki
+from bs4 import BeautifulSoup
 
-# import scraperwiki
-# import lxml.html
-#
-# # Read in a page
-# html = scraperwiki.scrape("http://foo.com")
-#
-# # Find something on the page using css selectors
-# root = lxml.html.fromstring(html)
-# root.cssselect("div[align='left']")
-#
-# # Write out to the sqlite database using scraperwiki library
-# scraperwiki.sqlite.save(unique_keys=['name'], data={"name": "susan", "occupation": "software developer"})
-#
-# # An arbitrary query against the database
-# scraperwiki.sql.select("* from data where 'name'='peter'")
+def get_episode_links():
+    html = scraperwiki.scrape('http://www.tiestoblog.com/tiesto-club-life/')
+    soup = BeautifulSoup(html)
+    postings = soup.select('[itemtype="http://schema.org/BlogPosting"]')
+    for p in postings:
+        bk_a_list = p.select('a[rel=bookmark]')
+        if not bk_a_list:
+            print('Unable to find rel=bookmark in %s' % repr(p), file=sys.stderr)
+            continue
+        bk_a = bk_a_list[0]
+        item_href = bk_a.attrs('href')
+        if not item_href:
+            print('Odd, a@rel=bookmark had no href %s' % repr(bk_a), file=sys.stderr)
+            continue
+        if re.search(r'life-\d+/$', link_href):
+            yield item_href
+        else:
+            print('Skipping unexpected href: %s' % repr(item_href), file=sys.stderr)
 
-# You don't have to do things with the ScraperWiki and lxml libraries. You can use whatever libraries are installed
-# on Morph for Python (https://github.com/openaustralia/morph-docker-python/blob/master/pip_requirements.txt) and all that matters
-# is that your final data is written to an Sqlite database called data.sqlite in the current working directory which
-# has at least a table called data.
+
+def get_episode_bodies():
+    for url in get_episode_links():
+        html = scraperwiki.scrape(url)
+        soup = BeautifulSoup(html)
+        entries = soup.select('[itemtype="http://schema.org/BlogPosting"]')
+        if not entries:
+            print('No blog postings on %s' % repr(url), file=sys.stderr)
+            continue
+        posting = entries[0]
+        bodies = posting.select('[itemprop=articleBody]')
+        if not bodies:
+            print('Unable to find articleBody in %s' % repr(posting), file=sys.stderr)
+            continue
+        body = bodies[0]
+        ma = re.search(r'life-(\d+)/$', url)
+        if not ma:
+            print('Odd URL you have there "%s"' % repr(url), file=sys.stderr)
+            episode = 0
+        else:
+            episode = int(ma.group(1))
+        txt = body.text
+        output = {
+            'episode': episode,
+            'text': txt,
+            'url': url,
+        }
+        yield output
+
+
+def main():
+    data_items = list(get_episode_bodies())
+    # episode# may be a better key
+    scraperwiki.sqlite.save(unique_keys=['url'], data=data_items)
+
+
+if __name__ == '__main__':
+    main()
