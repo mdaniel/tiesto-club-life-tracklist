@@ -51,7 +51,7 @@ def get_episode_bodies():
                                            for ii in it.contents])
                             for it in body.contents])
         payload = payload.strip()
-        payload = payload.encode('utf-8')
+        # sqlite prefers unicode, so don't encode the str
         output = {
             'episode': episode,
             'text': payload,
