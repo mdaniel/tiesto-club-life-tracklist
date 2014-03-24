@@ -15,7 +15,7 @@ def get_episode_links():
             print('Unable to find rel=bookmark in %s' % repr(p), file=sys.stderr)
             continue
         bk_a = bk_a_list[0]
-        item_href = bk_a.attrs('href')
+        item_href = bk_a.attrs.get('href')
         if not item_href:
             print('Odd, a@rel=bookmark had no href %s' % repr(bk_a), file=sys.stderr)
             continue
