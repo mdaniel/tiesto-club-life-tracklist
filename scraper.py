@@ -19,7 +19,7 @@ def get_episode_links():
         if not item_href:
             print('Odd, a@rel=bookmark had no href %s' % repr(bk_a), file=sys.stderr)
             continue
-        if re.search(r'life-\d+/$', link_href):
+        if re.search(r'life-\d+/$', item_href):
             yield item_href
         else:
             print('Skipping unexpected href: %s' % repr(item_href), file=sys.stderr)
