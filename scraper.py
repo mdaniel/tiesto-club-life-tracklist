@@ -63,8 +63,8 @@ def get_episode_bodies():
 
 def main():
     # careful, .weekday() is Monday indexed so Sun = 6
-    if 6 != datetime.utcnow().weekday():
-        return 0
+    #if 6 != datetime.utcnow().weekday():
+    #    return 0
     data_items = list(get_episode_bodies())
     # episode# may be a better key
     scraperwiki.sqlite.save(unique_keys=['url'], data=data_items)
