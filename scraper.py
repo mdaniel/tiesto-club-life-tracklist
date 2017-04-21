@@ -7,20 +7,15 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 
 def get_episode_links():
-    html = scraperwiki.scrape('http://www.tiestoblog.com/tiesto-club-life/')
+    html = scraperwiki.scrape('http://www.tiestoblog.com/category/podcast/')
     soup = BeautifulSoup(html)
-    postings = soup.select('[itemtype="http://schema.org/BlogPosting"]')
+    postings = soup.select('[role="main"] .post a[href]')
     for p in postings:
-        bk_a_list = p.select('a[rel=bookmark]')
-        if not bk_a_list:
-            print('Unable to find rel=bookmark in %s' % repr(p), file=sys.stderr)
-            continue
-        bk_a = bk_a_list[0]
-        item_href = bk_a.attrs.get('href')
+        item_href = p.attrs.get('href')
         if not item_href:
-            print('Odd, a@rel=bookmark had no href %s' % repr(bk_a), file=sys.stderr)
+            print('Odd, a[href] had no href %s' % repr(p), file=sys.stderr)
             continue
-        if re.search(r'life-\d+/$', item_href):
+        if re.search(r'-\d+/$', item_href):
             yield item_href
         else:
             print('Skipping unexpected href: %s' % repr(item_href), file=sys.stderr)
@@ -30,27 +25,30 @@ def get_episode_bodies():
     for url in get_episode_links():
         html = scraperwiki.scrape(url)
         soup = BeautifulSoup(html)
-        entries = soup.select('[itemtype="http://schema.org/BlogPosting"]')
-        if not entries:
-            print('No blog postings on %s' % repr(url), file=sys.stderr)
+        contents = soup.select('[role="main"] .post .entry-content')
+        if not contents:
+            print('Unable to find entry content in %s' % repr(html), file=sys.stderr)
             continue
-        posting = entries[0]
-        bodies = posting.select('[itemprop=articleBody]')
-        if not bodies:
-            print('Unable to find articleBody in %s' % repr(posting), file=sys.stderr)
-            continue
-        body = bodies[0]
-        ma = re.search(r'life-(\d+)/$', url)
+        content_el = contents[0]
+        ma = re.search(r'-(\d+)/$', url)
         if not ma:
             print('Odd URL you have there "%s"' % repr(url), file=sys.stderr)
             episode = 0
         else:
             episode = int(ma.group(1))
-        # all that getattr jazz is because NavigableString has no 'name'
-        payload = u''.join([u'\n%s\n ' % it.text if getattr(it, 'name', '').startswith('h')
-                            else u''.join(['\n' if getattr(ii, 'name', '') == 'br' else unicode(ii)
-                                           for ii in it.contents])
-                            for it in body.contents])
+        # :type: list[unicode]
+        parts = []
+        for it in content_el.contents:
+            # getattr is because NavigableString has no 'name'
+            el_name = getattr(it, 'name', '')
+            # skip over the <h?>Tracklist
+            if el_name.startswith('h'):
+                continue
+            if el_name == 'br':
+                parts.append('\n')
+            else:
+                parts.append(unicode(it))
+        payload = u''.join(parts)
         payload = payload.strip()
         # sqlite prefers unicode, so don't encode the str
         output = {
