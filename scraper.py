@@ -1,13 +1,19 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 import re
+import socket
 import sys
 import scraperwiki
 from datetime import datetime
 from bs4 import BeautifulSoup
 
 def get_episode_links():
-    html = scraperwiki.scrape('http://www.tiestoblog.com/category/podcast/')
+    starting_url = 'http://www.tiestoblog.com/category/podcast/'
+    try:
+        html = scraperwiki.scrape(starting_url)
+    except socket.error as se:
+        print('KABOOM: "{}": {}'.format(starting_url, se), file=sys.stderr)
+        return
     soup = BeautifulSoup(html)
     postings = soup.select('[role="main"] .post a[href]')
     for p in postings:
@@ -23,7 +29,11 @@ def get_episode_links():
 
 def get_episode_bodies():
     for url in get_episode_links():
-        html = scraperwiki.scrape(url)
+        try:
+            html = scraperwiki.scrape(url)
+        except socket.error as se:
+            print('KABOOM: "{}": {}'.format(url, se), file=sys.stderr)
+            continue            
         soup = BeautifulSoup(html)
         contents = soup.select('[role="main"] .post .entry-content')
         if not contents:
